@@ -1,5 +1,6 @@
 const path = require("path");
 const express = require("express");
+const http = require("http");
 const morgan = require("morgan");
 const rateLimit = require("express-rate-limit");
 const helmet = require("helmet");
@@ -10,8 +11,28 @@ const cookieParser = require("cookie-parser");
 const cors = require("cors");
 const AppError = require("./utils/appError");
 const globalErrorHandler = require("./controllers/errorController");
-
+// chat related packages
+const socketIo = require("socket.io");
+const { createClient } = require("redis");
+const { createAdapter } = require("@socket.io/redis-adapter");
 const app = express();
+const server = http.createServer(app);
+const io = socketIo(server);
+// creating a server
+
+async function RedisAdapter() {
+  try {
+    pubClient = createClient({ url: process.env.REDIS_HOST });
+    await pubClient.connect();
+    subClient = pubClient.duplicate();
+    io.adapter(createAdapter(pubClient, subClient));
+    console.log("Socket connection is successfully running on port",process.env.REDIS_HOST);
+  } catch (error) {
+    console.log("Socket connection is success", error);
+  }
+}
+
+RedisAdapter();
 
 // 1) GLOBAL MIDDLEWARESs
 app.use(express.static(path.join(__dirname, "public")));
@@ -26,12 +47,12 @@ if (process.env.NODE_ENV === "development") {
 app.use(morgan("dev"));
 
 // Limit requests from same API
-// const limiter = rateLimit({
-//   max: 10000,
-//   windowMs: 60 * 60 * 1000,
-//   message: "Too many requests from this IP, please try again in an hour!",
-// });
-// app.use("/api", limiter);
+const limiter = rateLimit({
+  max: 10000,
+  windowMs: 60 * 60 * 1000,
+  message: "Too many requests from this IP, please try again in an hour!",
+});
+app.use("/api", limiter);
 
 // Body parser, reading data from body into req.body
 app.use(express.json({ limit: "100kb" }));
@@ -40,7 +61,7 @@ app.use(cookieParser());
 
 app.use(
   cors({
-    origin: ["http://localhost:5173"],
+    origin: process.env.CLIENT_URL,
     credentials: true,
   })
 );
