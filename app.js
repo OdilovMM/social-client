@@ -23,10 +23,13 @@ const io = socketIo(server);
 async function RedisAdapter() {
   try {
     pubClient = createClient({ url: process.env.REDIS_HOST });
-    await pubClient.connect();
     subClient = pubClient.duplicate();
+    await Promise.all([pubClient.connect(), subClient.connect()]);
     io.adapter(createAdapter(pubClient, subClient));
-    console.log("Socket connection is successfully running on port",process.env.REDIS_HOST);
+    console.log(
+      "Socket connection is successfully running on port",
+      process.env.REDIS_HOST
+    );
   } catch (error) {
     console.log("Socket connection is success", error);
   }
