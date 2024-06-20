@@ -18,8 +18,12 @@ const { createAdapter } = require("@socket.io/redis-adapter");
 const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
-// creating a server
 
+// importing router folders
+const authRouter = require("./routes/authRoutes");
+
+
+// creating a server
 async function RedisAdapter() {
   try {
     pubClient = createClient({ url: process.env.REDIS_HOST });
@@ -57,6 +61,8 @@ const limiter = rateLimit({
 });
 app.use("/api", limiter);
 
+app.use(hpp());
+app.use(helmet());
 // Body parser, reading data from body into req.body
 app.use(express.json({ limit: "100kb" }));
 app.use(express.urlencoded({ extended: true, limit: "10kb" }));
@@ -82,7 +88,7 @@ app.use((req, res, next) => {
 });
 
 // 3) ROUTES
-// app.use("/api/v1/admin", authAdminRouter);
+app.use("/api/v1/auth", authRouter);
 
 app.all("*", (req, res, next) => {
   next(new AppError(`Can't find ${req.originalUrl} on this server!`, 404));
